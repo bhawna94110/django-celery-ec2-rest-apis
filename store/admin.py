@@ -22,7 +22,7 @@ class InventoryFilter(admin.SimpleListFilter):
             return queryset.filter(inventory__lt=10)
 
 @admin.register(models.Product)
-class ProcductAdmin(admin.ModelAdmin):
+class ProductAdmin(admin.ModelAdmin):
     # fields = ['title', 'slug']
     autocomplete_fields = ['collection']
     prepopulated_fields = {
@@ -75,23 +75,25 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
     list_display = ['id', 'placed_at', 'customer']
     
-@admin.register(models.Collection)
+@admin.register(models.Collection)    
 class CollectionAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['featured_product']
     list_display = ['title', 'products_count']
     search_fields = ['title']
-    
+
     @admin.display(ordering='products_count')
     def products_count(self, collection):
-        url = (reverse('admin:store_product_changelist')
-               + '?'
-               + urlencode({
-                   'collection__id': str(collection.id)
-               }))
-        return format_html('<a href="{}">{}</a>', url, collection.products_count)
-    
+        url = (
+            reverse('admin:store_product_changelist')
+            + '?'
+            + urlencode({
+                'collection__id': str(collection.id)
+            }))
+        return format_html('<a href="{}">{} Products</a>', url, collection.products_count)
+
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
-            products_count = Count('product')
+            products_count=Count('products')
         )
 
-# admin.site.register(models.Collection)
+admin.site.register(models.Review)
