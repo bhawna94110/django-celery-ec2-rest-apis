@@ -1,29 +1,43 @@
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.mixins import ListModelMixin, CreateModelMixin
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
 from rest_framework.views import APIView
-from . models import Product, Collection, Review
-from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer
-from django.db.models import Count
-from store.models import OrderItem
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, DestroyModelMixin
+from . models import Product, Collection, Review, Cart
+from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer, CartSerializer
+from django.db.models.aggregates import Count
+from .models import OrderItem
+from .filters import ProductFilter
+from .pagination import DefaultPagination
 
 ## PUT ALL THE SAME OR RELATED LOGIC IN ONE CLASS with the help of VIEWSETS
 class ProductViewSet(ModelViewSet):
-    # queryset = Product.objects.all()
+    #Adding generic filters, we dont need to add get_queryset function for query params
+    #But if need unit price filtering in between some range, we need to do custom filtering for that.
+    queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    #filterset_fields = ['collection_id']
+    filterset_class = ProductFilter
+    pagination_class = DefaultPagination #if you want to add pagination only for particular class
+    search_fields = ['title', 'description']
+    ordering_fields = ['unit_price', 'last_update']
     
     # function for adding query params
-    def get_queryset(self):
-        queryset = Product.objects.all()
-        collection_id = self.request.query_params.get('collection_id')
-        if collection_id is not None:
-            queryset = queryset.filter(collection_id=collection_id)
-        return queryset
+    # def get_queryset(self):
+    #     queryset = Product.objects.all()
+    #     collection_id = self.request.query_params.get('collection_id')
+    #     if collection_id is not None:
+    #         queryset = queryset.filter(collection_id=collection_id)
+    #     return queryset
     
     def get_serializer_context(self):
         return {'request': self.request}
@@ -60,6 +74,10 @@ class ReviewViewSet(ModelViewSet):
     
     def get_serializer_context(self):
         return {'product_id': self.kwargs['product_pk']}
+    
+class CartViewSet(CreateModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet):
+    queryset = Cart.objects.prefetch_related('items__product').all()
+    serializer_class = CartSerializer
 
 ####GENERIC API VIEWS
 # class ProductList(ListCreateAPIView):
